@@ -1,0 +1,63 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import random
+
+# Estados:
+# 0 - Pessoa saudável
+# 1 - Pessoa infectada
+# 2 - Pessoa recuperada/imune
+# 3 - Foco de mosquito (aedes aegypti)
+
+N = 50  # tamanho da grade
+prob_infeccao = 0.25  # chance de um mosquito infectar uma pessoa vizinha
+tempo_infeccao = 8  # número de passos até a recuperação
+
+# Inicialização da grade
+grid = np.zeros((N, N), dtype=int)
+
+# Coloca alguns mosquitos infectados aleatórios
+for _ in range(30):
+    grid[random.randint(0, N-1), random.randint(0, N-1)] = 3
+
+# Dicionário para acompanhar o tempo de infecção
+tempo_infectado = {}
+
+def atualiza(frameNum, img, grid, N):
+    global tempo_infectado
+    novo_grid = grid.copy()
+
+    for i in range(N):
+        for j in range(N):
+            if grid[i, j] == 1:  # Pessoa infectada
+                tempo_infectado[(i, j)] = tempo_infectado.get((i, j), 0) + 1
+                if tempo_infectado[(i, j)] >= tempo_infeccao:
+                    novo_grid[i, j] = 2  # Recuperada
+                    del tempo_infectado[(i, j)]
+            elif grid[i, j] == 0:  # Pessoa saudável
+                # Verifica vizinhos para presença de mosquito ou infectado
+                for x in [-1, 0, 1]:
+                    for y in [-1, 0, 1]:
+                        if (x != 0 or y != 0):
+                            ni, nj = (i + x) % N, (j + y) % N
+                            if grid[ni, nj] in [1, 3] and random.random() < prob_infeccao:
+                                novo_grid[i, j] = 1
+                                tempo_infectado[(i, j)] = 0
+                                break
+
+    img.set_data(novo_grid)
+    grid[:] = novo_grid[:]
+    return img
+
+# Configuração das cores para cada estado
+cmap = plt.cm.colors.ListedColormap(['lightblue', 'red', 'green', 'black'])
+bounds = [-0.5, 0.5, 1.5, 2.5, 3.5]
+norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
+
+fig, ax = plt.subplots()
+img = ax.imshow(grid, interpolation='nearest', cmap=cmap, norm=norm)
+ani = animation.FuncAnimation(fig, atualiza, fargs=(img, grid, N),
+                              frames=200, interval=200, save_count=50)
+
+plt.title("Simulação de Disseminação da Dengue - Autômato Celular")
+plt.show()
